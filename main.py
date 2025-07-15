@@ -3,11 +3,6 @@ import pandas as pd
 import numpy as np
 from scipy import stats
 import matplotlib.pyplot as plt
-import matplotlib
-import platform
-
-# Optional: Set font for minus sign, but no need for Korean font now
-matplotlib.rcParams['axes.unicode_minus'] = False
 
 st.set_page_config(page_title="t-test and Normal Distribution Visualization", layout="centered")
 
@@ -55,6 +50,7 @@ if uploaded_file is not None:
         st.write(f"{int(conf_level*100)}% Confidence Interval: ({ci_lower:.4f} ~ {ci_upper:.4f})")
         
         st.subheader("Estimated Population Normal Distribution")
+        # *** 표준화 없이 원본 정규분포 ***
         x = np.linspace(sample_mean - 4*sample_std, sample_mean + 4*sample_std, 200)
         y = stats.norm.pdf(x, loc=sample_mean, scale=sample_std)
         
