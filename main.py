@@ -47,19 +47,22 @@ if uploaded_file is not None:
         n = len(data)  # 표본 크기
         sample_mean = np.mean(data)  # 표본평균
         sample_std = np.std(data, ddof=1)  # 표본표준편차 (ddof=1로 표본 표준편차 계산)
-        alpha = st.slider("신뢰수준(1-α)", min_value=0.80, max_value=0.99, value=0.95, step=0.01)
-        conf_level = alpha
+
+        ## 신뢰수준을 직접 선택하게 selectbox로 변경. slider는 연속값만 되므로, 대표값 제시함
+        st.write("Select Confidence Level:")
+        conf_level = st.selectbox("Confidence Level", [0.80, 0.90, 0.95, 0.99], index=2)
         alpha = 1 - conf_level
 
         # 추정 방식 결정: n>=30이면 Z, 아니면 t
         if n >= 30:
             estimate_method = "Z"
             crit_val = stats.norm.ppf(1 - alpha/2)
-            method_text = "일반적 모평균 추정(Z-분포 사용)"
+            method_text = "General Population Mean Estimation (Z-distribution)"
         else:
             estimate_method = "t"
-            crit_val = stats.t.ppf(1 - alpha/2, df=n-1)
-            method_text = "t-추정(t-분포 사용)"
+            dfree = n - 1  ## t-분포 자유도
+            crit_val = stats.t.ppf(1 - alpha/2, df=dfree)
+            method_text = f"t-Estimation (t-distribution, df={dfree})"
 
         # 신뢰구간 계산
         margin_error = crit_val * (sample_std/np.sqrt(n))
@@ -74,17 +77,23 @@ if uploaded_file is not None:
         st.write(f"표본표준편차 (모표준편차 추정치): {sample_std:.4f}")
         st.write(f"{int(conf_level*100)}% 신뢰구간: ({ci_lower:.4f} ~ {ci_upper:.4f})")
         
-        st.subheader("추정된 모집단 정규분포 그래프")
-        # x축 범위는 표본평균±4*표본표준편차로 설정 (원본 정규분포를 그대로 그림)
+        st.subheader("추정된 모집단 분포 그래프")
+        # x축 범위는 표본평균±4*표본표준편차로 설정
         x = np.linspace(sample_mean - 4*sample_std, sample_mean + 4*sample_std, 200)
-        # 표본평균과 표본표준편차로 정규분포 PDF 계산
-        y = stats.norm.pdf(x, loc=sample_mean, scale=sample_std)
         
-        # 그래프 그리기 (영어 라벨/범례)
         fig, ax = plt.subplots()
-        ax.plot(x, y, label="Estimated Normal Distribution")
-        ax.axvline(sample_mean, color='r', linestyle='--', label='Estimated Population Mean')
-        ax.fill_between(x, 0, y, where=(x >= ci_lower) & (x <= ci_upper), color='skyblue', alpha=0.5, label=f"{int(conf_level*100)}% Confidence Interval")
+        if estimate_method == "Z":
+            # 표본평균과 표본표준편차로 정규분포 PDF 계산
+            y = stats.norm.pdf(x, loc=sample_mean, scale=sample_std)
+            ax.plot(x, y, label="Estimated Normal Distribution")
+            ax.axvline(sample_mean, color='r', linestyle='--', label='Estimated Population Mean')
+            ax.fill_between(x, 0, y, where=(x >= ci_lower) & (x <= ci_upper), color='skyblue', alpha=0.5, label=f"{int(conf_level*100)}% Confidence Interval")
+        else:
+            ## t-분포 PDF 계산: 표본평균을 중심, 표본표준오차로 정규화, 자유도 적용
+            y = stats.t.pdf((x - sample_mean) / (sample_std / np.sqrt(n)), df=dfree) / (sample_std / np.sqrt(n))
+            ax.plot(x, y, label=f"Estimated t-Distribution (df={dfree})")
+            ax.axvline(sample_mean, color='r', linestyle='--', label='Estimated Population Mean')
+            ax.fill_between(x, 0, y, where=(x >= ci_lower) & (x <= ci_upper), color='orange', alpha=0.4, label=f"{int(conf_level*100)}% Confidence Interval")
         ax.legend()
         ax.set_xlabel("Value")
         ax.set_ylabel("Probability Density")
